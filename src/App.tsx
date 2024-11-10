@@ -101,12 +101,12 @@ function App() {
                     <div id="videos" className="absolute top-0 left-1/2 transform -translate-x-1/2 z-10 flex space-x-2">
                         <video
                             id="localVideo"
-                            className={`w-60 h-48 rounded shadow-lg ${isWebRTCConnected ? localStream ? "" : "bg-black" : "hidden"}`}
+                            className={`w-60 h-48 rounded shadow-lg ${roomId && isWebRTCConnected ? localStream ? "" : "bg-black" : "hidden"}`}
                             autoPlay
                             playsInline
                         />
                     </div>
-                    <div className={`absolute top-14 left-1/2 transform -translate-x-1/2 z-10 ${isWebRTCConnected && !localStream ? "" : "hidden"}`}>
+                    <div className={`absolute top-14 left-1/2 transform -translate-x-1/2 z-10 ${roomId && isWebRTCConnected && !localStream ? "" : "hidden"}`}>
                         <div className="w-20 h-20 border-2 border-t-8 border-gray-200 rounded-full animate-spin" />
                     </div>
                 </>

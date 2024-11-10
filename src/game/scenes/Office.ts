@@ -81,6 +81,11 @@ export class Office extends Scene {
                 this.game.events.emit("isWebRTCConnected", false);
             }
         }
+        if (!isColliding && this.registry.list.isWebRTCConnected) {
+            if (this.currentPlayer.lastMoved && new Date().getTime() - this.currentPlayer.lastMoved.getTime() < 1000) {
+                this.game.events.emit("isWebRTCConnected", false);
+            }
+        }
 
         let direction = { x: 0, y: 0 };
         if (cursors?.left.isDown) {

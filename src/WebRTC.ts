@@ -24,7 +24,6 @@ async function mediaStream(playerId: string, webRTCInstance: RTCPeerConnection, 
         await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    isStream.current.creating = true;
     if (isStream.current.created) {
         setLocalStream((localStream: MediaStream | null) => {
             localStream?.getTracks().forEach((track) => {
@@ -37,6 +36,8 @@ async function mediaStream(playerId: string, webRTCInstance: RTCPeerConnection, 
         });
     }
     else {
+        isStream.current.creating = true;
+
         const newAudioAndVideoStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
         setLocalStream(newAudioAndVideoStream);
         newAudioAndVideoStream.getTracks().forEach((track) => {
