@@ -19,7 +19,7 @@ const servers = {
     ]
 }
 
-async function mediaStream(playerId: string, webRTCInstance: RTCPeerConnection, isStream: MutableRefObject<{ creating: boolean, created: boolean }>, setLocalStream: any) {
+async function mediaStream(playerId: string, webRTCInstance: RTCPeerConnection, isStream: MutableRefObject<{ creating: boolean, created: boolean }>, setLocalStream: any, cb: any) {
     while (isStream.current.creating) {
         await new Promise(resolve => setTimeout(resolve, 100));
     }
@@ -28,8 +28,11 @@ async function mediaStream(playerId: string, webRTCInstance: RTCPeerConnection, 
     if (isStream.current.created) {
         setLocalStream((localStream: MediaStream | null) => {
             localStream?.getTracks().forEach((track) => {
-                webRTCInstance.addTrack(track, localStream);
+                if (webRTCInstance.signalingState !== "closed") {
+                    webRTCInstance.addTrack(track, localStream);
+                }
             });
+            cb();
             return localStream;
         });
     }
@@ -41,6 +44,7 @@ async function mediaStream(playerId: string, webRTCInstance: RTCPeerConnection, 
                 webRTCInstance.addTrack(track, newAudioAndVideoStream);
             }
         });
+        cb();
     }
 
     webRTCInstance.ontrack = (event) => {
@@ -101,14 +105,15 @@ async function initialiseWebRTC(setRoomId: any, setWebRTCInstances: any, isStrea
             return [...webRTCInstances, { playerId: data.playerId, webRTCInstance: webRTCInstance }]
         });
 
-        await mediaStream(data.playerId, webRTCInstance, isStream, setLocalStream);
+        await mediaStream(data.playerId, webRTCInstance, isStream, setLocalStream, () => {
+            if (webRTCInstance.signalingState !== "closed") {
+                webRTCInstance.createOffer().then((offer) => {
+                    webRTCInstance.setLocalDescription(offer);
+                    socket.emit("offer", { offer: offer, playerId: data.playerId });
+                })
+            }
+        });
 
-        if (webRTCInstance.signalingState !== "closed") {
-            webRTCInstance.createOffer().then((offer) => {
-                webRTCInstance.setLocalDescription(offer);
-                socket.emit("offer", { offer: offer, playerId: data.playerId });
-            })
-        }
         webRTCInstance.onicecandidate = (event) => {
             if (event.candidate) {
                 socket.emit("iceCandidate", { candidate: event.candidate, playerId: data.playerId });
@@ -122,16 +127,17 @@ async function initialiseWebRTC(setRoomId: any, setWebRTCInstances: any, isStrea
             return [...webRTCInstances, { playerId: data.playerId, webRTCInstance: webRTCInstance }]
         });
 
-        await mediaStream(data.playerId, webRTCInstance, isStream, setLocalStream);
-
-        if (webRTCInstance.signalingState !== "closed") {
-            webRTCInstance.setRemoteDescription(data.offer).then(() => {
-                webRTCInstance.createAnswer().then((answer) => {
-                    webRTCInstance.setLocalDescription(answer);
-                    socket.emit("answer", { answer: answer, playerId: data.playerId });
+        await mediaStream(data.playerId, webRTCInstance, isStream, setLocalStream, () => {
+            if (webRTCInstance.signalingState !== "closed") {
+                webRTCInstance.setRemoteDescription(data.offer).then(() => {
+                    webRTCInstance.createAnswer().then((answer) => {
+                        webRTCInstance.setLocalDescription(answer);
+                        socket.emit("answer", { answer: answer, playerId: data.playerId });
+                    })
                 })
-            })
-        }
+            }
+        });
+
         webRTCInstance.onicecandidate = (event) => {
             if (event.candidate) {
                 socket.emit("iceCandidate", { candidate: event.candidate, playerId: data.playerId });

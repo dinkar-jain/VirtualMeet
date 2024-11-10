@@ -60,21 +60,12 @@ function App() {
     }, [roomId])
 
     async function stopMediaTracks() {
-        while (isStream.current.creating) {
-            await new Promise(resolve => setTimeout(resolve, 1000))
-        }
-        if (isStream.current.created) {
-            setLocalStream((prev) => {
-                if (prev) {
-                    prev.getTracks().forEach(track => track.stop())
-                }
-                return null
-            })
-        }
+        localStream?.getTracks().forEach(track => track.stop())
+        setLocalStream(null)
     }
 
     useEffect(() => {
-        if (!isWebRTCConnected) {
+        if (!isWebRTCConnected && localStream) {
             stopMediaTracks()
         }
     }, [isWebRTCConnected, localStream])
