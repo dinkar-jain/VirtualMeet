@@ -64,24 +64,26 @@ export class Office extends Scene {
             const isColliding = xDiff < 2 * playerWidth && yDiff < 1.2 * playerHeight;
             if (isColliding && !this.registry.list.isWebRTCConnected && !this.registry.list.roomId) {
                 if (this.currentPlayer.lastMoved && new Date().getTime() - this.currentPlayer.lastMoved.getTime() < 1000) {
-                    this.registry.set("isWebRTCConnected", true);
-                    //- Think of a better way to sync the positions
+                    this.game.events.emit("isWebRTCConnected", true);
                     socket.emit("move", {
                         x: this.currentPlayer.sprite.x,
                         y: this.currentPlayer.sprite.y
                     });
-                    setTimeout(() => {
-                        socket.emit("connectToPlayer", { playerId: player.id });
-                    }, 1000);
+                    socket.emit("connectToPlayer", { playerId: player.id });
                 }
             }
 
             return isColliding;
         });
         if (!isColliding && this.registry.list.isWebRTCConnected && this.registry.list.roomId) {
-            socket.emit("exitRoom", { roomId: this.registry.list.roomId });
-            this.registry.set("isWebRTCConnected", false);
+            if (this.currentPlayer.lastMoved && new Date().getTime() - this.currentPlayer.lastMoved.getTime() < 1000) {
+                socket.emit("exitRoom", { roomId: this.registry.list.roomId });
+                this.game.events.emit("isWebRTCConnected", false);
+            }
         }
+        // if (!isColliding && this.registry.list.isWebRTCConnected) {
+        //     this.game.events.emit("isWebRTCConnected", false);
+        // }
 
         let direction = { x: 0, y: 0 };
         if (cursors?.left.isDown) {

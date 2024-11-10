@@ -19,22 +19,23 @@ const servers = {
     ]
 }
 
-async function mediaStream(playerId: string, webRTCInstance: RTCPeerConnection, streamStateRef: MutableRefObject<{ stream: MediaStream | null, isCreating: boolean }>) {
-    while (streamStateRef.current.isCreating === true) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+async function mediaStream(playerId: string, webRTCInstance: RTCPeerConnection, isStream: MutableRefObject<{ creating: boolean, created: boolean }>, setLocalStream: any) {
+    while (isStream.current.creating) {
+        await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    if (streamStateRef.current.stream) {
-        streamStateRef.current.stream.getTracks().forEach((track) => {
-            webRTCInstance.addTrack(track, streamStateRef.current.stream as MediaStream);
+    isStream.current.creating = true;
+    if (isStream.current.created) {
+        setLocalStream((localStream: MediaStream | null) => {
+            localStream?.getTracks().forEach((track) => {
+                webRTCInstance.addTrack(track, localStream);
+            });
+            return localStream;
         });
     }
     else {
-        streamStateRef.current.isCreating = true;
         const newAudioAndVideoStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-        streamStateRef.current.stream = newAudioAndVideoStream;
-        streamStateRef.current.isCreating = false;
-
+        setLocalStream(newAudioAndVideoStream);
         newAudioAndVideoStream.getTracks().forEach((track) => {
             if (webRTCInstance.signalingState !== "closed") {
                 webRTCInstance.addTrack(track, newAudioAndVideoStream);
@@ -43,9 +44,6 @@ async function mediaStream(playerId: string, webRTCInstance: RTCPeerConnection, 
     }
 
     webRTCInstance.ontrack = (event) => {
-        const localVideo = document.getElementById("localVideo") as HTMLVideoElement
-        localVideo.srcObject = streamStateRef.current.stream;
-
         document.getElementById(playerId)?.remove();
 
         const remoteVideo = document.createElement("video") as HTMLVideoElement;
@@ -60,7 +58,7 @@ async function mediaStream(playerId: string, webRTCInstance: RTCPeerConnection, 
     }
 }
 
-async function initialiseWebRTC(setRoomId: any, setWebRTCInstances: any, streamStateRef: MutableRefObject<{ stream: MediaStream | null, isCreating: boolean }>) {
+async function initialiseWebRTC(setRoomId: any, setWebRTCInstances: any, isStream: MutableRefObject<{ creating: boolean, created: boolean }>, setLocalStream: any) {
     socket.on("connectRequest", (data: { playerId: string }) => {
         setWebRTCInstances((webRTCInstances: { playerId: string, webRTCInstance: RTCPeerConnection }[]) => {
             if (webRTCInstances.length >= maxConnections) {
@@ -103,7 +101,7 @@ async function initialiseWebRTC(setRoomId: any, setWebRTCInstances: any, streamS
             return [...webRTCInstances, { playerId: data.playerId, webRTCInstance: webRTCInstance }]
         });
 
-        await mediaStream(data.playerId, webRTCInstance, streamStateRef);
+        await mediaStream(data.playerId, webRTCInstance, isStream, setLocalStream);
 
         if (webRTCInstance.signalingState !== "closed") {
             webRTCInstance.createOffer().then((offer) => {
@@ -124,7 +122,7 @@ async function initialiseWebRTC(setRoomId: any, setWebRTCInstances: any, streamS
             return [...webRTCInstances, { playerId: data.playerId, webRTCInstance: webRTCInstance }]
         });
 
-        await mediaStream(data.playerId, webRTCInstance, streamStateRef);
+        await mediaStream(data.playerId, webRTCInstance, isStream, setLocalStream);
 
         if (webRTCInstance.signalingState !== "closed") {
             webRTCInstance.setRemoteDescription(data.offer).then(() => {

@@ -10,17 +10,14 @@ import { socket } from "./socket";
 import Phaser from "phaser"
 
 function App() {
-    const streamStateRef = useRef<{ stream: MediaStream | null, isCreating: boolean }>({ stream: null, isCreating: false })
+    const isStream = useRef<{ creating: boolean, created: boolean }>({ creating: false, created: false })
 
     const [roomId, setRoomId] = useState<string | null>(null)
     const [game, setGame] = useState<Phaser.Game | null>(null)
     const [username, setUsername] = useState<string | null>(null)
+    const [localStream, setLocalStream] = useState<MediaStream | null>(null)
+    const [isWebRTCConnected, setIsWebRTCConnected] = useState<boolean>(false)
     const [webRTCInstances, setWebRTCInstances] = useState<{ playerId: string, webRTCInstance: RTCPeerConnection }[]>([])
-
-    function stopMediaTracks(stream: MediaStream) {
-        stream.getTracks().forEach(track => track.stop())
-        streamStateRef.current.stream = null
-    }
 
     useEffect(() => {
         if (!username) return
@@ -49,9 +46,10 @@ function App() {
                 }
             })
             currentGameInstance.registry.set("name", username)
+            currentGameInstance.events.on("isWebRTCConnected", (data: boolean) => { setIsWebRTCConnected(data) })
             setGame(currentGameInstance)
 
-            initialiseWebRTC(setRoomId, setWebRTCInstances, streamStateRef)
+            initialiseWebRTC(setRoomId, setWebRTCInstances, isStream, setLocalStream)
         })
     }, [username])
 
@@ -61,25 +59,47 @@ function App() {
         }
     }, [roomId])
 
-    async function handleWebRTCInstancesChange() {
-        game?.registry.set("isWebRTCConnected", false)
-        setRoomId(null)
-
-        while (streamStateRef.current.isCreating) {
-            await new Promise(resolve => setTimeout(resolve, 100))
+    async function stopMediaTracks() {
+        while (isStream.current.creating) {
+            await new Promise(resolve => setTimeout(resolve, 1000))
         }
-
-        if (streamStateRef.current.stream) stopMediaTracks(streamStateRef.current.stream)
+        if (isStream.current.created) {
+            setLocalStream((prev) => {
+                if (prev) {
+                    prev.getTracks().forEach(track => track.stop())
+                }
+                return null
+            })
+        }
     }
 
     useEffect(() => {
+        if (!isWebRTCConnected) {
+            stopMediaTracks()
+        }
+    }, [isWebRTCConnected, localStream])
+
+    useEffect(() => {
+        game?.registry.set("isWebRTCConnected", isWebRTCConnected)
+    }, [isWebRTCConnected])
+
+    useEffect(() => {
         if (webRTCInstances.length === 0) {
-            handleWebRTCInstancesChange()
+            setIsWebRTCConnected(false)
+            setRoomId(null)
         }
         else {
-            game?.registry.set("isWebRTCConnected", true)
+            setIsWebRTCConnected(true)
         }
     }, [webRTCInstances])
+
+    useEffect(() => {
+        isStream.current.creating = false
+        isStream.current.created = !!localStream
+
+        const localVideo = document.getElementById("localVideo") as HTMLVideoElement
+        if (localVideo) localVideo.srcObject = localStream
+    }, [localStream])
 
     return (
         <>
@@ -90,10 +110,13 @@ function App() {
                     <div id="videos" className="absolute top-0 left-1/2 transform -translate-x-1/2 z-10 flex space-x-2">
                         <video
                             id="localVideo"
-                            className={`w-60 h-48 rounded shadow-lg ${webRTCInstances.length === 0 ? "hidden" : ""}`}
+                            className={`w-60 h-48 rounded shadow-lg ${isWebRTCConnected ? localStream ? "" : "bg-black" : "hidden"}`}
                             autoPlay
                             playsInline
                         />
+                    </div>
+                    <div className={`absolute top-14 left-1/2 transform -translate-x-1/2 z-10 ${isWebRTCConnected && !localStream ? "" : "hidden"}`}>
+                        <div className="w-20 h-20 border-2 border-t-8 border-gray-200 rounded-full animate-spin" />
                     </div>
                 </>
                 :
