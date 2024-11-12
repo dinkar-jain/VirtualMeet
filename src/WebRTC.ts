@@ -49,6 +49,7 @@ async function mediaStream(playerId: string, webRTCInstance: RTCPeerConnection, 
     }
 
     webRTCInstance.ontrack = (event) => {
+        console.log("ontrack event", event);
         document.getElementById(playerId)?.remove();
 
         const remoteVideo = document.createElement("video") as HTMLVideoElement;
@@ -61,10 +62,21 @@ async function mediaStream(playerId: string, webRTCInstance: RTCPeerConnection, 
 
         document.getElementById("videos")?.appendChild(remoteVideo);
     }
+
+    webRTCInstance.onconnectionstatechange = (event) => {
+        console.log("onconnectionstatechange", event);
+        console.log("Connection state:", webRTCInstance.connectionState);
+    }
+
+    webRTCInstance.oniceconnectionstatechange = (event) => {
+        console.log("oniceconnectionstatechange", event);
+        console.log("ICE connection state:", webRTCInstance.iceConnectionState);
+    }
 }
 
 async function initialiseWebRTC(setRoomId: any, setWebRTCInstances: any, isStream: MutableRefObject<{ creating: boolean, created: boolean }>, setLocalStream: any) {
     socket.on("connectRequest", (data: { playerId: string }) => {
+        console.log("connectRequest", data);
         setWebRTCInstances((webRTCInstances: { playerId: string, webRTCInstance: RTCPeerConnection }[]) => {
             if (webRTCInstances.length >= maxConnections) {
                 socket.emit("roomFull", { playerId: data.playerId });
@@ -96,11 +108,13 @@ async function initialiseWebRTC(setRoomId: any, setWebRTCInstances: any, isStrea
     });
 
     socket.on("connectResponse", (data: { playerId: string, roomId: string }) => {
+        console.log("connectResponse", data);
         socket.emit("joinRoom", { roomId: data.roomId });
         setRoomId(data.roomId);
     })
 
     socket.on("playerJoined", async (data: { playerId: string }) => {
+        console.log("playerJoined", data);
         const webRTCInstance = new RTCPeerConnection(servers);
         setWebRTCInstances((webRTCInstances: { playerId: string, webRTCInstance: RTCPeerConnection }[]) => {
             return [...webRTCInstances, { playerId: data.playerId, webRTCInstance: webRTCInstance }]
@@ -110,13 +124,16 @@ async function initialiseWebRTC(setRoomId: any, setWebRTCInstances: any, isStrea
             if (webRTCInstance.signalingState !== "closed") {
                 webRTCInstance.createOffer().then((offer) => {
                     webRTCInstance.setLocalDescription(offer);
+                    console.log("Sending offer to", data.playerId);
                     socket.emit("offer", { offer: offer, playerId: data.playerId });
                 })
             }
         });
 
         webRTCInstance.onicecandidate = (event) => {
+            console.log("Found icecandidate", event);
             if (event.candidate) {
+                console.log("Sending ICE candidate to", data.playerId);
                 socket.emit("iceCandidate", { candidate: event.candidate, playerId: data.playerId });
             }
         }
@@ -133,6 +150,7 @@ async function initialiseWebRTC(setRoomId: any, setWebRTCInstances: any, isStrea
                 webRTCInstance.setRemoteDescription(data.offer).then(() => {
                     webRTCInstance.createAnswer().then((answer) => {
                         webRTCInstance.setLocalDescription(answer);
+                        console.log("Sending answer to", data.playerId);
                         socket.emit("answer", { answer: answer, playerId: data.playerId });
                     })
                 })
@@ -140,7 +158,9 @@ async function initialiseWebRTC(setRoomId: any, setWebRTCInstances: any, isStrea
         });
 
         webRTCInstance.onicecandidate = (event) => {
+            console.log("Found icecandidate", event);
             if (event.candidate) {
+                console.log("Sending ICE candidate to", data.playerId);
                 socket.emit("iceCandidate", { candidate: event.candidate, playerId: data.playerId });
             }
         }
@@ -154,6 +174,7 @@ async function initialiseWebRTC(setRoomId: any, setWebRTCInstances: any, isStrea
                     // Process queued candidates
                     const candidates = iceCandidateQueue.get(data.playerId) || [];
                     candidates.forEach((candidate: RTCIceCandidate) => {
+                        console.log("Adding queued ICE candidate");
                         webRTCInstance.addIceCandidate(candidate).catch(error => {
                             console.error("Error adding queued ICE candidate:", error);
                         });
@@ -172,6 +193,7 @@ async function initialiseWebRTC(setRoomId: any, setWebRTCInstances: any, isStrea
             const webRTCInstance = webRTCInstances.find((instance) => instance.playerId === data.playerId)?.webRTCInstance;
             if (webRTCInstance) {
                 if (webRTCInstance.remoteDescription) {
+                    console.log("Adding ICE candidate with remote description");
                     webRTCInstance.addIceCandidate(data.candidate).catch(error => {
                         console.error("Error adding ICE candidate:", error);
                     });
@@ -180,6 +202,7 @@ async function initialiseWebRTC(setRoomId: any, setWebRTCInstances: any, isStrea
                     if (!iceCandidateQueue.has(data.playerId)) {
                         iceCandidateQueue.set(data.playerId, []);
                     }
+                    console.log("Queueing ICE candidate");
                     iceCandidateQueue.get(data.playerId).push(data.candidate);
                 }
             }
@@ -188,6 +211,7 @@ async function initialiseWebRTC(setRoomId: any, setWebRTCInstances: any, isStrea
     });
 
     socket.on("toExitRoom", (data: { playerId: string }) => {
+        console.log("toExitRoom", data);
         if (data.playerId === socket.id) {
             setWebRTCInstances((webRTCInstances: { playerId: string, webRTCInstance: RTCPeerConnection }[]) => {
                 webRTCInstances.forEach((instance) => {
