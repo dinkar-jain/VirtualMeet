@@ -153,6 +153,15 @@ async function initialiseWebRTC(setRoomId: any, setWebRTCInstances: any, isStrea
                         console.log("Sending answer to", data.playerId);
                         socket.emit("answer", { answer: answer, playerId: data.playerId });
                     })
+                    // Process queued candidates
+                    const candidates = iceCandidateQueue.get(data.playerId) || [];
+                    candidates.forEach((candidate: RTCIceCandidate) => {
+                        console.log("Adding queued ICE candidate");
+                        webRTCInstance.addIceCandidate(candidate).catch(error => {
+                            console.error("Error adding queued ICE candidate:", error);
+                        });
+                    });
+                    iceCandidateQueue.delete(data.playerId); // Clear the queue
                 })
             }
         });
