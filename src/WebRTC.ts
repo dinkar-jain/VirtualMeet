@@ -135,6 +135,14 @@ async function initialiseWebRTC(setRoomId: any, setWebRTCInstances: any, isStrea
                         webRTCInstance.setLocalDescription(answer);
                         socket.emit("answer", { answer: answer, playerId: data.playerId });
                     })
+                    // Process queued candidates
+                    const candidates = iceCandidateQueue.get(data.playerId) || [];
+                    candidates.forEach((candidate: RTCIceCandidate) => {
+                        webRTCInstance.addIceCandidate(candidate).catch(error => {
+                            console.error("Error adding queued ICE candidate:", error);
+                        });
+                    });
+                    iceCandidateQueue.delete(data.playerId); // Clear the queue
                 })
             }
         });

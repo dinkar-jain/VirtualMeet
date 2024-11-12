@@ -104,6 +104,7 @@ function App() {
                             className={`w-60 h-48 rounded shadow-lg ${roomId && isWebRTCConnected ? localStream ? "" : "bg-black" : "hidden"}`}
                             autoPlay
                             playsInline
+                            muted
                         />
                     </div>
                     <div className={`absolute top-14 left-1/2 transform -translate-x-1/2 z-10 ${roomId && isWebRTCConnected && !localStream ? "" : "hidden"}`}>
