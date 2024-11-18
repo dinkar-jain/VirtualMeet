@@ -13,7 +13,15 @@ const handler = app.getRequestHandler();
 const inMemoryPlayers = [];
 
 app.prepare().then(() => {
-    const httpServer = createServer(handler);
+    const httpServer = createServer((req, res) => {
+        if (req.url === "/health" && req.method === "GET") {
+            res.statusCode = 200;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ status: "OK" }));
+        } else {
+            handler(req, res);
+        }
+    });
     const io = new Server(httpServer);
 
     io.on("connection", (socket) => {
