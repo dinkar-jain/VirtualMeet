@@ -101,6 +101,7 @@ function App() {
                     <div id="videos" className="absolute top-0 left-1/2 transform -translate-x-1/2 z-10 flex space-x-2">
                         <video
                             id="localVideo"
+                            muted
                             className={`w-60 h-48 rounded shadow-lg ${roomId && isWebRTCConnected ? localStream ? "" : "bg-black" : "hidden"}`}
                             autoPlay
                             playsInline
