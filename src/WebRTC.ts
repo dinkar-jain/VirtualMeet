@@ -116,6 +116,16 @@ async function initialiseWebRTC(setRoomId: any, setWebRTCInstances: any, isStrea
     socket.on("playerJoined", async (data: { playerId: string }) => {
         console.log("playerJoined", data);
         const webRTCInstance = new RTCPeerConnection(servers);
+        webRTCInstance.onsignalingstatechange = (event) => {
+            console.log("onsignalingstatechange", event);
+        }
+        webRTCInstance.oniceconnectionstatechange = (event) => {
+            console.log("oniceconnectionstatechange", event);
+        }
+        webRTCInstance.onicegatheringstatechange = (event) => {
+            console.log("onicegatheringstatechange", event);
+        }
+
         setWebRTCInstances((webRTCInstances: { playerId: string, webRTCInstance: RTCPeerConnection }[]) => {
             return [...webRTCInstances, { playerId: data.playerId, webRTCInstance: webRTCInstance }]
         });
@@ -141,6 +151,16 @@ async function initialiseWebRTC(setRoomId: any, setWebRTCInstances: any, isStrea
 
     socket.on("offer", async (data: { playerId: string, offer: RTCSessionDescriptionInit }) => {
         const webRTCInstance = new RTCPeerConnection(servers);
+        webRTCInstance.onsignalingstatechange = (event) => {
+            console.log("onsignalingstatechange", event);
+        }
+        webRTCInstance.oniceconnectionstatechange = (event) => {
+            console.log("oniceconnectionstatechange", event);
+        }
+        webRTCInstance.onicegatheringstatechange = (event) => {
+            console.log("onicegatheringstatechange", event);
+        }
+
         setWebRTCInstances((webRTCInstances: { playerId: string, webRTCInstance: RTCPeerConnection }[]) => {
             return [...webRTCInstances, { playerId: data.playerId, webRTCInstance: webRTCInstance }]
         });
